@@ -6,15 +6,15 @@ class BoostScreen extends StatelessWidget {
   const BoostScreen({super.key});
 
   void _showTimer(BuildContext context, String title, int minutes) {
-    int remaining = minutes * 60;
+    int total = minutes * 60;
+    int remaining = total;
     Timer? timer;
     
     showDialog(
       context: context,
-      barrierDismissible: false, // Force user to use the Stop button or manage dismissal cleanup
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          // Initialize timer only once
           timer ??= Timer.periodic(const Duration(seconds: 1), (t) {
             if (remaining > 0) {
               if (context.mounted) {
@@ -30,13 +30,26 @@ class BoostScreen extends StatelessWidget {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer, size: 50, color: Colors.orange),
-                const SizedBox(height: 20),
-                Text(
-                  '${(remaining ~/ 60).toString().padLeft(2, '0')}:${(remaining % 60).toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: CircularProgressIndicator(
+                        value: remaining / total,
+                        strokeWidth: 8,
+                        backgroundColor: Colors.orange.withOpacity(0.1),
+                        color: Colors.orange,
+                      ),
+                    ),
+                    Text(
+                      '${(remaining ~/ 60).toString().padLeft(2, '0')}:${(remaining % 60).toString().padLeft(2, '0')}',
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
                 const Text('Keep going, you got this!', style: TextStyle(color: Colors.grey)),
               ],
             ),
@@ -52,7 +65,7 @@ class BoostScreen extends StatelessWidget {
           );
         },
       ),
-    ).then((_) => timer?.cancel()); // Safety net: Ensure timer is cancelled if dialog closes
+    ).then((_) => timer?.cancel());
   }
 
   @override

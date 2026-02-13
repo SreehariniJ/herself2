@@ -1,4 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../core/herself_core.dart';
+
+class ChatMessage {
+  final String text;
+  final bool isUser;
+  ChatMessage({required this.text, required this.isUser});
+}
 
 class SafeSpaceScreen extends StatefulWidget {
   const SafeSpaceScreen({super.key});
@@ -7,137 +15,131 @@ class SafeSpaceScreen extends StatefulWidget {
   State<SafeSpaceScreen> createState() => _SafeSpaceScreenState();
 }
 
-class _SafeSpaceScreenState extends State<SafeSpaceScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  String _status = 'Inhale';
-  bool _isPlaying = true;
+class _SafeSpaceScreenState extends State<SafeSpaceScreen> {
+  final List<ChatMessage> _messages = [];
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Box Breathing: 4s Inhale, 4s Hold, 4s Exhale, 4s Hold
-    _controller = AnimationController(
-      duration: const Duration(seconds: 16),
-      vsync: this,
-    )..repeat();
-
-    _animation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 2.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 25),
-      TweenSequenceItem(tween: ConstantTween(2.0), weight: 25),
-      TweenSequenceItem(tween: Tween(begin: 2.0, end: 1.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 25),
-      TweenSequenceItem(tween: ConstantTween(1.0), weight: 25),
-    ]).animate(_controller);
-
-    _controller.addListener(() {
-      double value = _controller.value;
-      String newStatus = '';
-      if (value < 0.25) {
-        newStatus = 'Inhale';
-      } else if (value < 0.50) {
-        newStatus = 'Hold';
-      } else if (value < 0.75) {
-        newStatus = 'Exhale';
-      } else {
-        newStatus = 'Hold';
-      }
-      if (newStatus != _status) {
-        setState(() => _status = newStatus);
-      }
+    // Initial Greeting based on user state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = Provider.of<UserState>(context, listen: false);
+      _addBotMessage("Hi ${state.name}, I'm here for you. I noticed you're feeling ${state.mood} today. Would you like to talk about it?");
     });
   }
 
-  void _togglePlay() {
+  void _addBotMessage(String text) {
     setState(() {
-      _isPlaying = !_isPlaying;
-      if (_isPlaying) {
-        _controller.repeat();
-      } else {
-        _controller.stop();
-      }
+      _messages.add(ChatMessage(text: text, isUser: false));
+    });
+    _scrollToBottom();
+  }
+
+  void _handleSend() {
+    if (_controller.text.trim().isEmpty) return;
+    
+    final userText = _controller.text.trim();
+    setState(() {
+      _messages.add(ChatMessage(text: userText, isUser: true));
+      _controller.clear();
+    });
+    _scrollToBottom();
+
+    // Simulated Therapist Logic
+    Future.delayed(const Duration(seconds: 1), () {
+      String response = _getTherapistResponse(userText);
+      _addBotMessage(response);
     });
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  String _getTherapistResponse(String input) {
+    input = input.toLowerCase();
+    if (input.contains("sad") || input.contains("bad")) return "I'm sorry you're feeling this way. Remember that it's okay to have tough days. What's on your mind?";
+    if (input.contains("stress") || input.contains("work")) return "Stress can be overwhelming. Try to take a moment for yourself. Have you tried the Box Breathing exercise earlier?";
+    if (input.contains("happy") || input.contains("good")) return "That's wonderful to hear! I love seeing you in a positive space. What made your day better?";
+    return "I'm listening. Tell me more about that.";
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Safe Space')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _togglePlay,
-        child: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
-      ),
-      body: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.teal[50]!, Colors.white],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      appBar: AppBar(
+        title: const Row(
           children: [
-            const Text(
-              'Box Breathing',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal),
-            ),
-            const SizedBox(height: 60),
-            AnimatedBuilder(
-              animation: _animation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _animation.value,
+            CircleAvatar(backgroundColor: Colors.teal, radius: 15, child: Icon(Icons.spa, size: 18, color: Colors.white)),
+            SizedBox(width: 10),
+            Text('AI Therapist'),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                return Align(
+                  alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
-                    width: 100,
-                    height: 100,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.teal.withOpacity(0.3),
-                      border: Border.all(color: Colors.teal, width: 2),
-                      boxShadow: [
-                        if (_status == 'Hold')
-                          BoxShadow(
-                            color: Colors.teal.withOpacity(0.2),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
-                      ],
+                      color: msg.isUser ? Colors.teal : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(20).copyWith(
+                        bottomRight: msg.isUser ? const Radius.circular(0) : const Radius.circular(20),
+                        bottomLeft: msg.isUser ? const Radius.circular(20) : const Radius.circular(0),
+                      ),
                     ),
-                    child: Center(
-                      child: Icon(Icons.spa, color: Colors.teal[700], size: 40),
+                    child: Text(
+                      msg.text,
+                      style: TextStyle(color: msg.isUser ? Colors.white : Colors.black87),
                     ),
                   ),
                 );
               },
             ),
-            const SizedBox(height: 100),
-            Text(
-              _status,
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w600,
-                color: Colors.teal[800],
-                letterSpacing: 2,
-              ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
             ),
-            const SizedBox(height: 40),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                'Box breathing technique to calm your nervous system.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      hintText: 'Type your thoughts...',
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _handleSend(),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.teal),
+                  onPressed: _handleSend,
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

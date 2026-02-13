@@ -282,7 +282,10 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildModuleCard(BuildContext context, String title, IconData icon, Color color, Widget screen) {
     return InkWell(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => screen)),
+      onTap: () {
+        Provider.of<UserState>(context, listen: false).logInteraction(title == 'Daily Planner' ? 'Daily Planner' : (title == 'Health Care' ? 'Health Care' : title));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

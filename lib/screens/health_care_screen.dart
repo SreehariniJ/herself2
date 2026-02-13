@@ -80,11 +80,18 @@ class HealthCareScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Tracking helps you understand your body better.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    state.resetCycle();
+                    Navigator.pop(context);
+                  },
+                  icon: const Icon(Icons.restart_alt, size: 18),
+                  label: const Text('Period Started Today'),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.pink),
+                ),
               ),
             ],
           ),
@@ -103,7 +110,7 @@ class HealthCareScreen extends StatelessWidget {
     );
   }
 
-  void _startMeditation(BuildContext context) {
+  void _startMeditation(BuildContext context, UserState state) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -126,7 +133,10 @@ class HealthCareScreen extends StatelessWidget {
             const CircularProgressIndicator(color: Colors.teal),
             const SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                state.addMeditationMinutes(5);
+                Navigator.pop(context);
+              },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
               child: const Text('End Session'),
             ),
@@ -175,10 +185,21 @@ class HealthCareScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(5),
                   ),
                   const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: () => Provider.of<UserState>(context, listen: false).incrementWater(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Cup'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => Provider.of<UserState>(context, listen: false).incrementWater(),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Cup'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => Provider.of<UserState>(context, listen: false).resetWater(),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Reset'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -200,10 +221,10 @@ class HealthCareScreen extends StatelessWidget {
             ),
             _buildHealthTile(
               'Meditation',
-              'Guided sessions for mental peace',
+              '${userState.meditationMinutes} mins completed today',
               Icons.self_improvement,
               Colors.teal,
-              () => _startMeditation(context),
+              () => _startMeditation(context, userState),
             ),
           ],
         ),

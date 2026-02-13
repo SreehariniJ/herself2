@@ -35,28 +35,31 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
           _textController.clear();
           showDialog(
             context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Add Task'),
-              content: TextField(
-                controller: _textController,
-                autofocus: true,
-                decoration: const InputDecoration(hintText: 'What needs to be done?'),
+            builder: (context) => StatefulBuilder(
+              builder: (context, setDialogState) => AlertDialog(
+                title: const Text('Add Task'),
+                content: TextField(
+                  controller: _textController,
+                  autofocus: true,
+                  onChanged: (val) => setDialogState(() {}),
+                  decoration: const InputDecoration(hintText: 'What needs to be done?'),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _textController.text.trim().isEmpty
+                        ? null
+                        : () {
+                            Provider.of<UserState>(context, listen: false).addTask(_textController.text);
+                            Navigator.pop(context);
+                          },
+                    child: const Text('Add'),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_textController.text.isNotEmpty) {
-                      Provider.of<UserState>(context, listen: false).addTask(_textController.text);
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Text('Add'),
-                ),
-              ],
             ),
           );
         },
@@ -77,14 +80,15 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
               padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
               itemCount: userState.tasks.length,
               itemBuilder: (context, index) {
+                final task = userState.tasks[index];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
                     leading: const Icon(Icons.circle_outlined, color: Colors.blue),
-                    title: Text(userState.tasks[index]),
+                    title: Text(task.title),
                     trailing: IconButton(
                       icon: const Icon(Icons.check, color: Colors.green),
-                      onPressed: () => Provider.of<UserState>(context, listen: false).removeTask(index),
+                      onPressed: () => Provider.of<UserState>(context, listen: false).removeTask(task.id),
                     ),
                   ),
                 );
