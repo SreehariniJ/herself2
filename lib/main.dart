@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'core/herself_core.dart';
 
 void main() async {
   // Ensure Flutter is ready before we do anything
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Pre-load the database so the app is instant
   final prefs = await SharedPreferences.getInstance();
-  
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => UserState(prefs),
@@ -39,7 +41,66 @@ class HerselfApp extends StatelessWidget {
         // Poppins is beautiful, but we use system fallback to avoid wait times
         textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
       ),
-      home: const HomeScreen(),
+      home: const ReminderListener(child: HomeScreen()),
     );
+  }
+}
+
+class ReminderListener extends StatefulWidget {
+  final Widget child;
+  const ReminderListener({super.key, required this.child});
+
+  @override
+  State<ReminderListener> createState() => _ReminderListenerState();
+}
+
+class _ReminderListenerState extends State<ReminderListener> {
+  late StreamSubscription<TaskItem> _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userState = Provider.of<UserState>(context, listen: false);
+      _subscription = userState.reminderStream.listen(_showReminder);
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+
+  void _showReminder(TaskItem task) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.alarm, color: Colors.teal),
+            SizedBox(width: 8),
+            Text("Reminder"),
+          ],
+        ),
+        content: Text("It's time for: ${task.title}"),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Mark as done? Or just dismiss
+            },
+            child: const Text("Got it"),
+          ),
+        ],
+      ),
+    );
+    // Try to vibrate if on mobile
+    HapticFeedback.heavyImpact();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
   }
 }

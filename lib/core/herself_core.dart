@@ -2,15 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 import 'dart:convert';
 
 class TaskItem {
   final String id;
   final String title;
-  TaskItem({required this.id, required this.title});
-  Map<String, dynamic> toMap() => {'id': id, 'title': title};
-  factory TaskItem.fromMap(Map<String, dynamic> map) =>
-      TaskItem(id: map['id'], title: map['title']);
+  final DateTime? reminderTime;
+  bool reminderTriggered;
+
+  TaskItem({
+    required this.id,
+    required this.title,
+    this.reminderTime,
+    this.reminderTriggered = false,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'reminderTime': reminderTime?.toIso8601String(),
+    'reminderTriggered': reminderTriggered,
+  };
+
+  factory TaskItem.fromMap(Map<String, dynamic> map) => TaskItem(
+    id: map['id'],
+    title: map['title'],
+    reminderTime: map['reminderTime'] != null
+        ? DateTime.tryParse(map['reminderTime'])
+        : null,
+    reminderTriggered: map['reminderTriggered'] ?? false,
+  );
 }
 
 class InteractionLog {
@@ -74,6 +96,10 @@ class UserState extends ChangeNotifier {
   String get currentCoordinates => _currentCoordinates;
   String? get geminiApiKey => _prefs.getString('gemini_api_key');
 
+  final StreamController<TaskItem> _reminderStreamController =
+      StreamController.broadcast();
+  Stream<TaskItem> get reminderStream => _reminderStreamController.stream;
+
   UserState(this._prefs)
     : _name = _prefs.getString('user_name') ?? 'Sreeharini',
       _mood = _prefs.getString('user_mood') ?? 'happy',
@@ -111,6 +137,23 @@ class UserState extends ChangeNotifier {
 
     _autoUpdateCycleAndWater();
     if (_isSharingLocation) updateLocation();
+    _startReminderChecker();
+  }
+
+  void _startReminderChecker() {
+    Timer.periodic(const Duration(seconds: 30), (timer) {
+      final now = DateTime.now();
+      for (var task in _tasks) {
+        if (task.reminderTime != null && !task.reminderTriggered) {
+          if (now.isAfter(task.reminderTime!)) {
+            task.reminderTriggered = true;
+            _reminderStreamController.add(task);
+            _saveTasks();
+            notifyListeners();
+          }
+        }
+      }
+    });
   }
 
   static DateTime _parseSafeDate(String? dateStr) {
@@ -249,12 +292,13 @@ class UserState extends ChangeNotifier {
     await _prefs.setInt('user_energy', level);
   }
 
-  Future<void> addTask(String title) async {
+  Future<void> addTask(String title, {DateTime? reminder}) async {
     final sanitized = title.trim();
     if (sanitized.isEmpty) return;
     final newTask = TaskItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: sanitized,
+      reminderTime: reminder,
     );
     _tasks.add(newTask);
     notifyListeners();
