@@ -9,16 +9,29 @@ class TaskItem {
   final String title;
   TaskItem({required this.id, required this.title});
   Map<String, dynamic> toMap() => {'id': id, 'title': title};
-  factory TaskItem.fromMap(Map<String, dynamic> map) => TaskItem(id: map['id'], title: map['title']);
+  factory TaskItem.fromMap(Map<String, dynamic> map) =>
+      TaskItem(id: map['id'], title: map['title']);
 }
 
 class InteractionLog {
   final String mood;
   final int energy;
   final String module;
-  InteractionLog({required this.mood, required this.energy, required this.module});
-  Map<String, dynamic> toMap() => {'mood': mood, 'energy': energy, 'module': module};
-  factory InteractionLog.fromMap(Map<String, dynamic> map) => InteractionLog(mood: map['mood'], energy: map['energy'], module: map['module']);
+  InteractionLog({
+    required this.mood,
+    required this.energy,
+    required this.module,
+  });
+  Map<String, dynamic> toMap() => {
+    'mood': mood,
+    'energy': energy,
+    'module': module,
+  };
+  factory InteractionLog.fromMap(Map<String, dynamic> map) => InteractionLog(
+    mood: map['mood'],
+    energy: map['energy'],
+    module: map['module'],
+  );
 }
 
 class EmergencyContact {
@@ -27,7 +40,8 @@ class EmergencyContact {
   final String phone;
   EmergencyContact({required this.id, required this.name, required this.phone});
   Map<String, dynamic> toMap() => {'id': id, 'name': name, 'phone': phone};
-  factory EmergencyContact.fromMap(Map<String, dynamic> map) => EmergencyContact(id: map['id'], name: map['name'], phone: map['phone']);
+  factory EmergencyContact.fromMap(Map<String, dynamic> map) =>
+      EmergencyContact(id: map['id'], name: map['name'], phone: map['phone']);
 }
 
 class UserState extends ChangeNotifier {
@@ -46,7 +60,7 @@ class UserState extends ChangeNotifier {
   List<InteractionLog> _history = [];
 
   final SharedPreferences _prefs;
-  
+
   String get name => _name;
   String get mood => _mood;
   int get energyLevel => _energyLevel;
@@ -58,31 +72,31 @@ class UserState extends ChangeNotifier {
   int get meditationMinutes => _meditationMinutes;
   bool get isSharingLocation => _isSharingLocation;
   String get currentCoordinates => _currentCoordinates;
+  String? get geminiApiKey => _prefs.getString('gemini_api_key');
 
   UserState(this._prefs)
-      : _name = _prefs.getString('user_name') ?? 'Sreeharini',
-        _mood = _prefs.getString('user_mood') ?? 'happy',
-        _energyLevel = _prefs.getInt('user_energy') ?? 7,
-        _tasks = (_prefs.getStringList('user_tasks_v2') ?? [])
-            .map((t) {
-              try {
-                return TaskItem.fromMap(jsonDecode(t));
-              } catch (_) {
-                return null;
-              }
-            })
-            .whereType<TaskItem>()
-            .toList(),
-        _waterCups = _prefs.getInt('user_water') ?? 0,
-        _emergencyContacts = (_prefs.getStringList('user_contacts_v1') ?? [])
-            .map((c) => EmergencyContact.fromMap(jsonDecode(c)))
-            .toList(),
-        _sleepHours = _prefs.getInt('user_sleep') ?? 7,
-        _daysUntilCycle = _prefs.getInt('user_cycle') ?? 12,
-        _meditationMinutes = _prefs.getInt('user_meditation') ?? 0,
-        _isSharingLocation = _prefs.getBool('user_location') ?? true,
-        _lastOpened = _parseSafeDate(_prefs.getString('last_opened')) {
-    
+    : _name = _prefs.getString('user_name') ?? 'Sreeharini',
+      _mood = _prefs.getString('user_mood') ?? 'happy',
+      _energyLevel = _prefs.getInt('user_energy') ?? 7,
+      _tasks = (_prefs.getStringList('user_tasks_v2') ?? [])
+          .map((t) {
+            try {
+              return TaskItem.fromMap(jsonDecode(t));
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<TaskItem>()
+          .toList(),
+      _waterCups = _prefs.getInt('user_water') ?? 0,
+      _emergencyContacts = (_prefs.getStringList('user_contacts_v1') ?? [])
+          .map((c) => EmergencyContact.fromMap(jsonDecode(c)))
+          .toList(),
+      _sleepHours = _prefs.getInt('user_sleep') ?? 7,
+      _daysUntilCycle = _prefs.getInt('user_cycle') ?? 12,
+      _meditationMinutes = _prefs.getInt('user_meditation') ?? 0,
+      _isSharingLocation = _prefs.getBool('user_location') ?? true,
+      _lastOpened = _parseSafeDate(_prefs.getString('last_opened')) {
     // Add default contacts if list is empty
     if (_emergencyContacts.isEmpty) {
       _emergencyContacts = [
@@ -94,7 +108,7 @@ class UserState extends ChangeNotifier {
     _history = (_prefs.getStringList('user_learning_v1') ?? [])
         .map((item) => InteractionLog.fromMap(jsonDecode(item)))
         .toList();
-        
+
     _autoUpdateCycleAndWater();
     if (_isSharingLocation) updateLocation();
   }
@@ -110,7 +124,11 @@ class UserState extends ChangeNotifier {
 
   void _autoUpdateCycleAndWater() {
     final now = DateTime.now();
-    final lastDate = DateTime(_lastOpened.year, _lastOpened.month, _lastOpened.day);
+    final lastDate = DateTime(
+      _lastOpened.year,
+      _lastOpened.month,
+      _lastOpened.day,
+    );
     final nowDate = DateTime(now.year, now.month, now.day);
     final dayDifference = nowDate.difference(lastDate).inDays;
 
@@ -150,7 +168,8 @@ class UserState extends ChangeNotifier {
 
     try {
       Position position = await Geolocator.getCurrentPosition();
-      _currentCoordinates = "${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}";
+      _currentCoordinates =
+          "${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}";
     } catch (e) {
       _currentCoordinates = "Error fetching";
     }
@@ -182,7 +201,9 @@ class UserState extends ChangeNotifier {
 
   // --- LEARNING LOGIC ---
   void logInteraction(String moduleName) {
-    _history.add(InteractionLog(mood: _mood, energy: _energyLevel, module: moduleName));
+    _history.add(
+      InteractionLog(mood: _mood, energy: _energyLevel, module: moduleName),
+    );
     if (_history.length > 50) _history.removeAt(0);
     final encoded = _history.map((e) => jsonEncode(e.toMap())).toList();
     _prefs.setStringList('user_learning_v1', encoded);
@@ -196,7 +217,8 @@ class UserState extends ChangeNotifier {
       }
     }
     if (patterns.isNotEmpty) {
-      var sortedPatterns = patterns.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      var sortedPatterns = patterns.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
       return sortedPatterns.first.key;
     }
     if (_mood == 'stressed' || _mood == 'tired') return 'Safe Space';
@@ -230,7 +252,10 @@ class UserState extends ChangeNotifier {
   Future<void> addTask(String title) async {
     final sanitized = title.trim();
     if (sanitized.isEmpty) return;
-    final newTask = TaskItem(id: DateTime.now().millisecondsSinceEpoch.toString(), title: sanitized);
+    final newTask = TaskItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: sanitized,
+    );
     _tasks.add(newTask);
     notifyListeners();
     _saveTasks();
@@ -297,5 +322,10 @@ class UserState extends ChangeNotifier {
     notifyListeners();
     await _prefs.setBool('user_location', _isSharingLocation);
     HapticFeedback.selectionClick();
+  }
+
+  Future<void> updateGeminiApiKey(String key) async {
+    await _prefs.setString('gemini_api_key', key.trim());
+    notifyListeners();
   }
 }
