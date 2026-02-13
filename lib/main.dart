@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+// ignore: unused_import
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'core/herself_core.dart';
+import 'core/notification_service.dart';
 
 void main() async {
   // Ensure Flutter is ready before we do anything
@@ -13,6 +16,10 @@ void main() async {
 
   // Pre-load the database so the app is instant
   final prefs = await SharedPreferences.getInstance();
+
+  // Initialize Notifications
+  final notificationService = NotificationService();
+  await notificationService.init();
 
   runApp(
     ChangeNotifierProvider(

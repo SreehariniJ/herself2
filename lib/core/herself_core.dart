@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'notification_service.dart';
 
 class TaskItem {
   final String id;
@@ -295,8 +296,9 @@ class UserState extends ChangeNotifier {
   Future<void> addTask(String title, {DateTime? reminder}) async {
     final sanitized = title.trim();
     if (sanitized.isEmpty) return;
+    final idStr = DateTime.now().millisecondsSinceEpoch.toString();
     final newTask = TaskItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: idStr,
       title: sanitized,
       reminderTime: reminder,
     );
@@ -304,9 +306,38 @@ class UserState extends ChangeNotifier {
     notifyListeners();
     _saveTasks();
     HapticFeedback.lightImpact();
+
+    if (reminder != null && reminder.isAfter(DateTime.now())) {
+      try {
+        await NotificationService().scheduleNotification(
+          id: int.parse(
+            idStr.substring(idStr.length - 8),
+          ), // Integers only for IDs
+          title: "Daily Planner Reminder",
+          body: title,
+          scheduledDate: reminder,
+        );
+      } catch (e) {
+        debugPrint("Failed to schedule notification: $e");
+      }
+    }
   }
 
   Future<void> removeTask(String id) async {
+    final task = _tasks.firstWhere(
+      (t) => t.id == id,
+      orElse: () => TaskItem(id: '', title: ''),
+    );
+    if (task.id.isNotEmpty && task.reminderTime != null) {
+      try {
+        // Try to cancel notification using the same ID derivation
+        final notifId = int.parse(task.id.substring(task.id.length - 8));
+        await NotificationService().cancelNotification(notifId);
+      } catch (e) {
+        debugPrint("Failed to cancel notification: $e");
+      }
+    }
+
     _tasks.removeWhere((t) => t.id == id);
     notifyListeners();
     _saveTasks();
