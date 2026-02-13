@@ -6,6 +6,7 @@ import 'screens/daily_planner_screen.dart';
 import 'screens/health_care_screen.dart';
 import 'screens/guardian_screen.dart';
 import 'core/herself_core.dart';
+import 'core/auth_service.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -30,7 +31,10 @@ class HomeScreen extends StatelessWidget {
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () {
               state.updateName(controller.text);
@@ -39,6 +43,48 @@ class HomeScreen extends StatelessWidget {
             child: const Text('Save'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showProfileMenu(BuildContext context) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final userState = Provider.of<UserState>(context, listen: false);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Edit Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                _showEditProfile(context, userState);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.email_outlined),
+              title: const Text('Email'),
+              subtitle: Text(authService.currentUserEmail ?? 'Not set'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                authService.logout();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -67,7 +113,7 @@ class HomeScreen extends StatelessWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.account_circle_outlined),
-                onPressed: () => _showEditProfile(context, userState),
+                onPressed: () => _showProfileMenu(context),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -101,49 +147,59 @@ class HomeScreen extends StatelessWidget {
                   Text(
                     '${_getGreeting()}, ${userState.name}!',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     DateFormat('EEEE, MMMM d').format(DateTime.now()),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Recommendations Section
                   GestureDetector(
                     onTap: () {
                       if (screenMap.containsKey(suggested)) {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => screenMap[suggested]!));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => screenMap[suggested]!,
+                          ),
+                        );
                       }
                     },
                     child: _buildRecommendationCard(context, suggested),
                   ),
-                  
+
                   const SizedBox(height: 30),
                   Text(
                     'How are you feeling?',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _buildMoodSelector(context, userState),
-                  
+
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Energy Level',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         '${userState.energyLevel}/10',
-                        style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -154,13 +210,13 @@ class HomeScreen extends StatelessWidget {
                     divisions: 9,
                     onChanged: (val) => userState.updateEnergy(val.toInt()),
                   ),
-                  
+
                   const SizedBox(height: 20),
                   Text(
                     'Explore Modules',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -177,11 +233,41 @@ class HomeScreen extends StatelessWidget {
                 childAspectRatio: 1.1,
               ),
               delegate: SliverChildListDelegate([
-                _buildModuleCard(context, 'Boost', Icons.bolt, Colors.orange, const BoostScreen()),
-                _buildModuleCard(context, 'Safe Space', Icons.spa, Colors.teal, const SafeSpaceScreen()),
-                _buildModuleCard(context, 'Daily Planner', Icons.event_note, Colors.blue, const DailyPlannerScreen()),
-                _buildModuleCard(context, 'Health Care', Icons.favorite, Colors.redAccent, const HealthCareScreen()),
-                _buildModuleCard(context, 'Guardian', Icons.security, Colors.indigo, const GuardianScreen()),
+                _buildModuleCard(
+                  context,
+                  'Boost',
+                  Icons.bolt,
+                  Colors.orange,
+                  const BoostScreen(),
+                ),
+                _buildModuleCard(
+                  context,
+                  'Safe Space',
+                  Icons.spa,
+                  Colors.teal,
+                  const SafeSpaceScreen(),
+                ),
+                _buildModuleCard(
+                  context,
+                  'Daily Planner',
+                  Icons.event_note,
+                  Colors.blue,
+                  const DailyPlannerScreen(),
+                ),
+                _buildModuleCard(
+                  context,
+                  'Health Care',
+                  Icons.favorite,
+                  Colors.redAccent,
+                  const HealthCareScreen(),
+                ),
+                _buildModuleCard(
+                  context,
+                  'Guardian',
+                  Icons.security,
+                  Colors.indigo,
+                  const GuardianScreen(),
+                ),
               ]),
             ),
           ),
@@ -253,10 +339,14 @@ class HomeScreen extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? Theme.of(context).colorScheme.primaryContainer : Colors.white,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey[200]!,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey[200]!,
                 width: 2,
               ),
             ),
@@ -268,8 +358,12 @@ class HomeScreen extends StatelessWidget {
                   entry.key,
                   style: TextStyle(
                     fontSize: 10,
-                    color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ],
@@ -280,11 +374,24 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildModuleCard(BuildContext context, String title, IconData icon, Color color, Widget screen) {
+  Widget _buildModuleCard(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    Widget screen,
+  ) {
     return InkWell(
       onTap: () {
-        Provider.of<UserState>(context, listen: false).logInteraction(title == 'Daily Planner' ? 'Daily Planner' : (title == 'Health Care' ? 'Health Care' : title));
-        Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+        Provider.of<UserState>(context, listen: false).logInteraction(
+          title == 'Daily Planner'
+              ? 'Daily Planner'
+              : (title == 'Health Care' ? 'Health Care' : title),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => screen),
+        );
       },
       child: Container(
         padding: const EdgeInsets.all(16),

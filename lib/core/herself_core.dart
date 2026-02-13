@@ -76,6 +76,9 @@ class UserState extends ChangeNotifier {
   List<EmergencyContact> _emergencyContacts;
   int _sleepHours;
   int _daysUntilCycle;
+  DateTime? _lastPeriodDate;
+  int _cycleLength;
+  int _periodDuration;
   int _meditationMinutes;
   bool _isSharingLocation;
   String _currentCoordinates = "Unknown";
@@ -92,6 +95,9 @@ class UserState extends ChangeNotifier {
   List<EmergencyContact> get emergencyContacts => _emergencyContacts;
   int get sleepHours => _sleepHours;
   int get daysUntilCycle => _daysUntilCycle;
+  DateTime? get lastPeriodDate => _lastPeriodDate;
+  int get cycleLength => _cycleLength;
+  int get periodDuration => _periodDuration;
   int get meditationMinutes => _meditationMinutes;
   bool get isSharingLocation => _isSharingLocation;
   String get currentCoordinates => _currentCoordinates;
@@ -121,6 +127,9 @@ class UserState extends ChangeNotifier {
           .toList(),
       _sleepHours = _prefs.getInt('user_sleep') ?? 7,
       _daysUntilCycle = _prefs.getInt('user_cycle') ?? 12,
+      _lastPeriodDate = _parseSafeDate(_prefs.getString('last_period_date')),
+      _cycleLength = _prefs.getInt('cycle_length') ?? 28,
+      _periodDuration = _prefs.getInt('period_duration') ?? 5,
       _meditationMinutes = _prefs.getInt('user_meditation') ?? 0,
       _isSharingLocation = _prefs.getBool('user_location') ?? true,
       _lastOpened = _parseSafeDate(_prefs.getString('last_opened')) {
@@ -382,6 +391,59 @@ class UserState extends ChangeNotifier {
     notifyListeners();
     await _prefs.setInt('user_cycle', 28);
     HapticFeedback.heavyImpact();
+  }
+
+  Future<void> updateLastPeriodDate(DateTime date) async {
+    _lastPeriodDate = date;
+    notifyListeners();
+    await _prefs.setString('last_period_date', date.toIso8601String());
+  }
+
+  Future<void> updateCycleLength(int length) async {
+    _cycleLength = length;
+    notifyListeners();
+    await _prefs.setInt('cycle_length', length);
+  }
+
+  Future<void> updatePeriodDuration(int duration) async {
+    _periodDuration = duration;
+    notifyListeners();
+    await _prefs.setInt('period_duration', duration);
+  }
+
+  Future<void> logPeriodStart() async {
+    _lastPeriodDate = DateTime.now();
+    _daysUntilCycle = _cycleLength;
+    notifyListeners();
+    await _prefs.setString(
+      'last_period_date',
+      _lastPeriodDate!.toIso8601String(),
+    );
+    await _prefs.setInt('user_cycle', _cycleLength);
+    HapticFeedback.heavyImpact();
+  }
+
+  DateTime? getNextPeriodDate() {
+    if (_lastPeriodDate == null) return null;
+    return _lastPeriodDate!.add(Duration(days: _cycleLength));
+  }
+
+  int getDaysUntilNextPeriod() {
+    final nextDate = getNextPeriodDate();
+    if (nextDate == null) return 0;
+    final diff = nextDate.difference(DateTime.now()).inDays;
+    return diff > 0 ? diff : 0;
+  }
+
+  bool isOnPeriod() {
+    if (_lastPeriodDate == null) return false;
+    final daysSinceStart = DateTime.now().difference(_lastPeriodDate!).inDays;
+    return daysSinceStart >= 0 && daysSinceStart < _periodDuration;
+  }
+
+  int getCurrentPeriodDay() {
+    if (!isOnPeriod()) return 0;
+    return DateTime.now().difference(_lastPeriodDate!).inDays + 1;
   }
 
   Future<void> addMeditationMinutes(int mins) async {

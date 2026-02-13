@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'core/herself_core.dart';
 import 'core/notification_service.dart';
+import 'core/auth_service.dart';
+import 'screens/login_screen.dart';
 
 void main() async {
   // Ensure Flutter is ready before we do anything
@@ -22,8 +24,11 @@ void main() async {
   await notificationService.init();
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => UserState(prefs),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AuthService(prefs)),
+        ChangeNotifierProvider(create: (context) => UserState(prefs)),
+      ],
       child: const HerselfApp(),
     ),
   );
@@ -45,10 +50,17 @@ class HerselfApp extends StatelessWidget {
           secondary: const Color(0xFF00897B),
           surface: const Color(0xFFFFF8F9),
         ),
-        // Poppins is beautiful, but we use system fallback to avoid wait times
         textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
       ),
-      home: const ReminderListener(child: HomeScreen()),
+      home: Consumer<AuthService>(
+        builder: (context, authService, _) {
+          if (authService.isAuthenticated) {
+            return const ReminderListener(child: HomeScreen());
+          } else {
+            return const LoginScreen();
+          }
+        },
+      ),
     );
   }
 }
@@ -83,7 +95,7 @@ class _ReminderListenerState extends State<ReminderListener> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.alarm, color: Colors.teal),
             SizedBox(width: 8),
@@ -95,7 +107,6 @@ class _ReminderListenerState extends State<ReminderListener> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Mark as done? Or just dismiss
             },
             child: const Text("Got it"),
           ),

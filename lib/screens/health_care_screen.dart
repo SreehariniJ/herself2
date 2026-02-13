@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../core/herself_core.dart';
 
 class HealthCareScreen extends StatelessWidget {
@@ -15,18 +16,31 @@ class HealthCareScreen extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('How many hours did you sleep?', style: TextStyle(color: Colors.grey[600])),
+              Text(
+                'How many hours did you sleep?',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    onPressed: () => setDialogState(() => localSleep > 0 ? localSleep-- : null),
+                    onPressed: () => setDialogState(
+                      () => localSleep > 0 ? localSleep-- : null,
+                    ),
                     icon: const Icon(Icons.remove_circle_outline),
                   ),
-                  Text('$localSleep h', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(
+                    '$localSleep h',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   IconButton(
-                    onPressed: () => setDialogState(() => localSleep < 24 ? localSleep++ : null),
+                    onPressed: () => setDialogState(
+                      () => localSleep < 24 ? localSleep++ : null,
+                    ),
                     icon: const Icon(Icons.add_circle_outline),
                   ),
                 ],
@@ -34,7 +48,10 @@ class HealthCareScreen extends StatelessWidget {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () {
                 state.updateSleep(localSleep);
@@ -48,65 +65,10 @@ class HealthCareScreen extends StatelessWidget {
     );
   }
 
-  void _showCycleInfo(BuildContext context, UserState state) {
-    int localDays = state.daysUntilCycle;
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Cycle Tracker'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.calendar_month, size: 50, color: Colors.pink),
-              const SizedBox(height: 16),
-              const Text(
-                'Days until next cycle:',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    onPressed: () => setDialogState(() => localDays > 0 ? localDays-- : null),
-                    icon: const Icon(Icons.remove_circle_outline),
-                  ),
-                  Text('$localDays', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.pink)),
-                  IconButton(
-                    onPressed: () => setDialogState(() => localDays < 40 ? localDays++ : null),
-                    icon: const Icon(Icons.add_circle_outline),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    state.resetCycle();
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.restart_alt, size: 18),
-                  label: const Text('Period Started Today'),
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.pink),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () {
-                state.updateCycleDays(localDays);
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
+  void _showCycleTracker(BuildContext context, UserState state) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CycleTrackerScreen()),
     );
   }
 
@@ -126,9 +88,15 @@ class HealthCareScreen extends StatelessWidget {
           children: [
             const Icon(Icons.self_improvement, size: 80, color: Colors.teal),
             const SizedBox(height: 20),
-            const Text('Meditation Session', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text(
+              'Meditation Session',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
-            const Text('Take a deep breath and clear your mind...', style: TextStyle(color: Colors.grey)),
+            const Text(
+              'Take a deep breath and clear your mind...',
+              style: TextStyle(color: Colors.grey),
+            ),
             const SizedBox(height: 40),
             const CircularProgressIndicator(color: Colors.teal),
             const SizedBox(height: 40),
@@ -137,7 +105,10 @@ class HealthCareScreen extends StatelessWidget {
                 state.addMeditationMinutes(5);
                 Navigator.pop(context);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('End Session'),
             ),
           ],
@@ -174,7 +145,11 @@ class HealthCareScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     '${userState.waterCups} / 8 cups today',
-                    style: TextStyle(fontSize: 24, color: Colors.blue[900], fontWeight: FontWeight.w900),
+                    style: TextStyle(
+                      fontSize: 24,
+                      color: Colors.blue[900],
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   LinearProgressIndicator(
@@ -189,13 +164,19 @@ class HealthCareScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       ElevatedButton.icon(
-                        onPressed: () => Provider.of<UserState>(context, listen: false).incrementWater(),
+                        onPressed: () => Provider.of<UserState>(
+                          context,
+                          listen: false,
+                        ).incrementWater(),
                         icon: const Icon(Icons.add),
                         label: const Text('Add Cup'),
                       ),
                       const SizedBox(width: 12),
                       OutlinedButton.icon(
-                        onPressed: () => Provider.of<UserState>(context, listen: false).resetWater(),
+                        onPressed: () => Provider.of<UserState>(
+                          context,
+                          listen: false,
+                        ).resetWater(),
                         icon: const Icon(Icons.refresh),
                         label: const Text('Reset'),
                       ),
@@ -207,10 +188,14 @@ class HealthCareScreen extends StatelessWidget {
             const SizedBox(height: 24),
             _buildHealthTile(
               'Cycle Tracker',
-              'Next cycle in ${userState.daysUntilCycle} days',
+              userState.lastPeriodDate != null
+                  ? (userState.isOnPeriod()
+                        ? 'Day ${userState.getCurrentPeriodDay()} of period'
+                        : 'Next period in ${userState.getDaysUntilNextPeriod()} days')
+                  : 'Tap to set up tracking',
               Icons.calendar_month,
               Colors.pink,
-              () => _showCycleInfo(context, userState),
+              () => _showCycleTracker(context, userState),
             ),
             _buildHealthTile(
               'Sleep Log',
@@ -232,7 +217,13 @@ class HealthCareScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHealthTile(String title, String status, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildHealthTile(
+    String title,
+    String status,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: ListTile(
@@ -241,6 +232,531 @@ class HealthCareScreen extends StatelessWidget {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(status),
         trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+      ),
+    );
+  }
+}
+
+class CycleTrackerScreen extends StatefulWidget {
+  const CycleTrackerScreen({super.key});
+
+  @override
+  State<CycleTrackerScreen> createState() => _CycleTrackerScreenState();
+}
+
+class _CycleTrackerScreenState extends State<CycleTrackerScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userState = Provider.of<UserState>(context, listen: false);
+      if (userState.lastPeriodDate == null) {
+        _showInitialSetupDialog(context, userState);
+      }
+    });
+  }
+
+  void _showInitialSetupDialog(BuildContext context, UserState state) {
+    DateTime? selectedDate;
+    int cycleLength = 28;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.calendar_month, color: Colors.pink),
+              SizedBox(width: 12),
+              Text('Set Up Cycle Tracker'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'When was your last period?',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 60),
+                      ),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setDialogState(() => selectedDate = picked);
+                    }
+                  },
+                  icon: const Icon(Icons.event),
+                  label: Text(
+                    selectedDate != null
+                        ? DateFormat('MMM d, yyyy').format(selectedDate!)
+                        : 'Select Date',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.pink,
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'What is your average cycle length?',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: () => setDialogState(
+                        () => cycleLength > 21 ? cycleLength-- : null,
+                      ),
+                      icon: const Icon(
+                        Icons.remove_circle_outline,
+                        color: Colors.pink,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.pink.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$cycleLength days',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.pink,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => setDialogState(
+                        () => cycleLength < 45 ? cycleLength++ : null,
+                      ),
+                      icon: const Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.pink,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Typical range: 21-35 days',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Skip'),
+            ),
+            ElevatedButton(
+              onPressed: selectedDate == null
+                  ? null
+                  : () {
+                      state.updateLastPeriodDate(selectedDate!);
+                      state.updateCycleLength(cycleLength);
+                      Navigator.pop(context);
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.pink,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectLastPeriodDate(
+    BuildContext context,
+    UserState state,
+  ) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: state.lastPeriodDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      state.updateLastPeriodDate(picked);
+    }
+  }
+
+  void _showSettingsDialog(BuildContext context, UserState state) {
+    int localCycleLength = state.cycleLength;
+    int localPeriodDuration = state.periodDuration;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Cycle Settings'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Cycle Length (days)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: () => setDialogState(
+                      () => localCycleLength > 21 ? localCycleLength-- : null,
+                    ),
+                    icon: const Icon(Icons.remove_circle_outline),
+                  ),
+                  Text(
+                    '$localCycleLength',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setDialogState(
+                      () => localCycleLength < 45 ? localCycleLength++ : null,
+                    ),
+                    icon: const Icon(Icons.add_circle_outline),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Period Duration (days)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: () => setDialogState(
+                      () => localPeriodDuration > 3
+                          ? localPeriodDuration--
+                          : null,
+                    ),
+                    icon: const Icon(Icons.remove_circle_outline),
+                  ),
+                  Text(
+                    '$localPeriodDuration',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setDialogState(
+                      () => localPeriodDuration < 10
+                          ? localPeriodDuration++
+                          : null,
+                    ),
+                    icon: const Icon(Icons.add_circle_outline),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                state.updateCycleLength(localCycleLength);
+                state.updatePeriodDuration(localPeriodDuration);
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userState = Provider.of<UserState>(context);
+    final nextPeriodDate = userState.getNextPeriodDate();
+    final daysUntil = userState.getDaysUntilNextPeriod();
+    final isOnPeriod = userState.isOnPeriod();
+    final currentDay = userState.getCurrentPeriodDay();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cycle Tracker'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => _showSettingsDialog(context, userState),
+          ),
+        ],
+      ),
+      body: userState.lastPeriodDate == null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.calendar_month, size: 80, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No cycle data yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        _showInitialSetupDialog(context, userState),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Set Up Tracker'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.pink,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Main Status Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isOnPeriod
+                            ? [const Color(0xFFE91E63), const Color(0xFFC2185B)]
+                            : [
+                                const Color(0xFF9C27B0),
+                                const Color(0xFF7B1FA2),
+                              ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isOnPeriod ? Colors.pink : Colors.purple)
+                              .withOpacity(0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isOnPeriod ? Icons.water_drop : Icons.event,
+                            color: Colors.white,
+                            size: 56,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          isOnPeriod ? 'Period in Progress' : 'Next Period',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (isOnPeriod) ...[
+                          Text(
+                            'Day $currentDay',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'of ${userState.periodDuration}',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ] else if (nextPeriodDate != null) ...[
+                          Text(
+                            DateFormat('MMM d').format(nextPeriodDate),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              daysUntil == 0
+                                  ? 'Today'
+                                  : daysUntil == 1
+                                  ? 'Tomorrow'
+                                  : 'in $daysUntil days',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Quick Actions
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => userState.logPeriodStart(),
+                          icon: const Icon(Icons.fiber_manual_record),
+                          label: const Text('Log Period'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.pink,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _selectLastPeriodDate(context, userState),
+                          icon: const Icon(Icons.edit_calendar),
+                          label: const Text('Edit Date'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.pink,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            side: const BorderSide(
+                              color: Colors.pink,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Info Cards
+                  _buildInfoCard(
+                    'Last Period',
+                    DateFormat('MMM d, yyyy').format(userState.lastPeriodDate!),
+                    Icons.event,
+                    Colors.purple,
+                  ),
+                  _buildInfoCard(
+                    'Cycle Length',
+                    '${userState.cycleLength} days',
+                    Icons.loop,
+                    Colors.blue,
+                  ),
+                  _buildInfoCard(
+                    'Period Duration',
+                    '${userState.periodDuration} days',
+                    Icons.timelapse,
+                    Colors.teal,
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildInfoCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+        ),
+        trailing: Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
       ),
     );
   }
