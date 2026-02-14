@@ -4,7 +4,7 @@ import '../core/herself_core.dart';
 class GeminiChatbotLogic {
   final UserState userState;
   // TODO: Replace with your actual Gemini API Key
-  static const String _apiKey = "AIzaSyCZWeHOTFZHxP8RInHFg1vmReAf7sWBWdU";
+  static const String _apiKey = "AIzaSyAeVujLDCXyllamZzlieBEJulsRM8O-b6U";
   late final GenerativeModel _model;
   ChatSession? _chatSession;
 

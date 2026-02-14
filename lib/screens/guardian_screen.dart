@@ -126,6 +126,197 @@ class _GuardianScreenState extends State<GuardianScreen> {
     );
   }
 
+  // Travel Mode Variables
+  bool _isTravelModeActive = false;
+  Timer? _checkInTimer;
+  Timer? _alertTimer;
+  int _checkInIntervalMinutes = 15;
+  int _alertCountdown = 60;
+  bool _isAlertActive = false;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _checkInTimer?.cancel();
+    _alertTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startTravelMode() {
+    setState(() {
+      _isTravelModeActive = true;
+    });
+    _scheduleNextCheckIn();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Travel Mode Started. Checking in every $_checkInIntervalMinutes mins.')),
+    );
+  }
+
+  void _stopTravelMode() {
+    _checkInTimer?.cancel();
+    _alertTimer?.cancel();
+    setState(() {
+      _isTravelModeActive = false;
+      _alertCountdown = 60;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Travel Mode Stopped.')),
+    );
+  }
+
+  void _scheduleNextCheckIn() {
+    _checkInTimer?.cancel();
+    _checkInTimer = Timer(Duration(minutes: _checkInIntervalMinutes), () {
+       if (mounted) _showSafetyCheckDialog();
+    });
+  }
+
+  void _showSafetyCheckDialog() {
+    _alertCountdown = 60;
+    
+    // Start countdown for auto-alert
+    _alertTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+         _alertCountdown--;
+      });
+
+      if (_alertCountdown <= 0) {
+        timer.cancel();
+        Navigator.of(context, rootNavigator: true).pop(); // Close dialog
+        _sendWhatsAppSOS(); // Auto trigger SOS
+        _stopTravelMode(); // Stop mode after triggering
+      }
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            SizedBox(width: 8),
+            Text("Safety Check"),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Are you safe? Please confirm."),
+            const SizedBox(height: 20),
+            Text(
+              "Auto-alert in $_alertCountdown s",
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+             onPressed: () {
+               _alertTimer?.cancel();
+               Navigator.of(context, rootNavigator: true).pop();
+               _sendWhatsAppSOS();
+               _stopTravelMode();
+             },
+             child: const Text("NOT SAFE (SOS)", style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              _alertTimer?.cancel();
+              Navigator.of(context, rootNavigator: true).pop();
+              _scheduleNextCheckIn();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Safety Confirmed. Next check scheduled.')),
+              );
+            },
+            icon: const Icon(Icons.check),
+            label: const Text("I'M SAFE"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTravelModeCard() {
+    return Card(
+      color: _isTravelModeActive ? Colors.green.shade50 : Colors.blue.shade50,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(_isTravelModeActive ? Icons.directions_car : Icons.time_to_leave, 
+                  color: _isTravelModeActive ? Colors.green : Colors.blue, size: 30),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isTravelModeActive ? "Travel Mode Active" : "Travel Mode",
+                        style: TextStyle(
+                          fontSize: 18, 
+                          fontWeight: FontWeight.bold,
+                          color: _isTravelModeActive ? Colors.green.shade800 : Colors.blue.shade800
+                        ),
+                      ),
+                      Text(
+                        _isTravelModeActive 
+                          ? "Checking safety every $_checkInIntervalMinutes mins"
+                          : "Auto-alerts if you don't check in",
+                        style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (!_isTravelModeActive)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Check-in Interval:"),
+                  DropdownButton<int>(
+                    value: _checkInIntervalMinutes,
+                    items: [1, 5, 10, 15, 30, 60].map((int value) {
+                      return DropdownMenuItem<int>(
+                        value: value,
+                        child: Text('$value mins'),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _checkInIntervalMinutes = val);
+                    },
+                  ),
+                ],
+              ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isTravelModeActive ? _stopTravelMode : _startTravelMode,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isTravelModeActive ? Colors.red : Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(_isTravelModeActive ? "STOP TRAVEL MODE" : "START TRAVEL MODE"),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userState = Provider.of<UserState>(context);
@@ -139,6 +330,8 @@ class _GuardianScreenState extends State<GuardianScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildTravelModeCard(),
+                const SizedBox(height: 24),
                 _buildSectionHeader('Current Location', Icons.my_location),
                 Card(
                   child: ListTile(

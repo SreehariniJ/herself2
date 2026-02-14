@@ -13,16 +13,33 @@ import 'core/auth_service.dart';
 import 'core/database_helper.dart';
 import 'screens/login_screen.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'dart:io' show Platform;
+
 void main() async {
   // Ensure Flutter is ready before we do anything
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize FFI for Windows/Desktop (Skip on Web)
+  // We use a try-catch because explicitly accessing Platform on web can throw error even inside an if check in some runtimes
+  if (!kIsWeb) {
+    try {
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      }
+    } catch (e) {
+      // Ignore platform errors
+    }
+  }
 
   // Pre-load the database so the app is instant
   final prefs = await SharedPreferences.getInstance();
 
   // Initialize the SQLite database
   final dbHelper = DatabaseHelper();
-  await dbHelper.init(prefs);
+  // dbHelper.init(prefs) is no longer needed with sqflite
 
   // Initialize Notifications
   final notificationService = NotificationService();
@@ -50,12 +67,33 @@ class HerselfApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFF48FB1),
-          primary: const Color(0xFFAD1457),
-          secondary: const Color(0xFF00897B),
-          surface: const Color(0xFFFFF8F9),
+          seedColor: const Color(0xFF9C27B0), // Rich Purple
+          primary: const Color(0xFF7B1FA2),
+          secondary: const Color(0xFF00B8D4), // Elegant Cyan
+          surface: const Color(0xFFFDFBFF),
         ),
-        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
+        textTheme: GoogleFonts.outfitTextTheme(Theme.of(context).textTheme),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          color: Colors.white,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Color(0xFF9C27B0), width: 1.5),
+          ),
+        ),
       ),
       home: Consumer<AuthService>(
         builder: (context, authService, _) {

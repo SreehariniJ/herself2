@@ -1,91 +1,111 @@
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 
-/// A simple multi-user database built on SharedPreferences.
-/// Works on all platforms (mobile, web, desktop) without native dependencies.
-/// Stores users as a JSON-encoded list under a single key.
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
-  final String _usersKey = 'db_users_list';
-  SharedPreferences? _prefs;
+  static Database? _database;
 
   DatabaseHelper._internal();
 
   factory DatabaseHelper() => _instance;
 
-  /// Initialize with a SharedPreferences instance
-  Future<void> init(SharedPreferences prefs) async {
-    _prefs = prefs;
+  Future<Database?> get database async {
+    if (kIsWeb) return null;
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database;
   }
 
-  /// Get all stored users
-  List<Map<String, dynamic>> _getUsers() {
-    final jsonStr = _prefs?.getString(_usersKey);
-    if (jsonStr == null) return [];
+  Future<Database?> _initDatabase() async {
+    if (kIsWeb) return null;
     try {
-      final List<dynamic> decoded = jsonDecode(jsonStr);
-      return decoded.cast<Map<String, dynamic>>();
-    } catch (_) {
-      return [];
+      String path = join(await getDatabasesPath(), 'herself_users.db');
+      return await openDatabase(
+        path,
+        version: 1,
+        onCreate: _onCreate,
+      );
+    } catch (e) {
+      debugPrint("Error initializing database: $e");
+      return null;
     }
   }
 
-  /// Save users list back to storage
-  Future<void> _saveUsers(List<Map<String, dynamic>> users) async {
-    await _prefs?.setString(_usersKey, jsonEncode(users));
+  Future<void> _onCreate(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE users(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        email TEXT UNIQUE,
+        password TEXT,
+        created_at TEXT
+      )
+    ''');
   }
 
-  /// Insert a new user (signup)
-  Future<int> insertUser(String name, String email, String password) async {
-    final users = _getUsers();
+  // --- User Operations ---
 
-    // Check for duplicate email
-    final exists = users.any((u) => u['email'] == email);
-    if (exists) {
+  Future<int> insertUser(String name, String email, String password) async {
+    final db = await database;
+    if (db == null) return -1;
+    
+    try {
+      return await db.insert('users', {
+        'name': name,
+        'email': email,
+        'password': password,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
       throw Exception('User with this email already exists');
     }
-
-    final newId = (users.isEmpty) ? 1 : (users.last['id'] as int) + 1;
-    users.add({
-      'id': newId,
-      'name': name,
-      'email': email,
-      'password': password,
-      'created_at': DateTime.now().toIso8601String(),
-    });
-
-    await _saveUsers(users);
-    return newId;
   }
 
-  /// Get user by email and password (login)
   Future<Map<String, dynamic>?> getUser(String email, String password) async {
-    final users = _getUsers();
-    try {
-      return users.firstWhere(
-        (u) => u['email'] == email && u['password'] == password,
-      );
-    } catch (_) {
-      return null;
+    final db = await database;
+    if (db == null) return null;
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'email = ? AND password = ?',
+      whereArgs: [email, password],
+    );
+    if (maps.isNotEmpty) {
+      return maps.first;
     }
+    return null;
   }
 
-  /// Check if a user with this email already exists
   Future<Map<String, dynamic>?> getUserByEmail(String email) async {
-    final users = _getUsers();
-    try {
-      return users.firstWhere((u) => u['email'] == email);
-    } catch (_) {
-      return null;
+    final db = await database;
+    if (db == null) return null;
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+    if (maps.isNotEmpty) {
+      return maps.first;
     }
+    return null;
   }
 
-  /// Delete a user account
   Future<int> deleteUser(String email) async {
-    final users = _getUsers();
-    final initialLength = users.length;
-    users.removeWhere((u) => u['email'] == email);
-    await _saveUsers(users);
-    return initialLength - users.length;
+    final db = await database;
+    if (db == null) return 0;
+
+    return await db.delete(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final db = await database;
+    if (db == null) return [];
+    return await db.query('users', orderBy: 'id DESC');
   }
 }

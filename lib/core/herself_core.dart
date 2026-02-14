@@ -111,6 +111,12 @@ class UserState extends ChangeNotifier {
   int _meditationMinutes = 0;
   List<DailyHealthLog> _healthLogs = [];
 
+  // Behavior Learning Fields
+  List<String> _moodHistory = [];
+  List<int> _energyHistory = [];
+  Map<String, int> _moduleUsageCount = {};
+  String _lastUsedModule = "";
+
   final SharedPreferences _prefs;
 
   String get name => _name;
@@ -128,6 +134,12 @@ class UserState extends ChangeNotifier {
   String get currentCoordinates => _currentCoordinates;
   int get meditationMinutes => _meditationMinutes;
   List<DailyHealthLog> get healthLogs => _healthLogs;
+
+
+  List<String> get moodHistory => _moodHistory;
+  List<int> get energyHistory => _energyHistory;
+  Map<String, int> get moduleUsageCount => _moduleUsageCount;
+  String get lastUsedModule => _lastUsedModule;
   String? get geminiApiKey => _prefs.getString('gemini_api_key');
 
   final StreamController<TaskItem> _reminderStreamController =
@@ -175,9 +187,21 @@ class UserState extends ChangeNotifier {
       ];
     }
 
-    _history = (_prefs.getStringList('user_learning_v1') ?? [])
-        .map((item) => InteractionLog.fromMap(jsonDecode(item)))
+
+
+    // Load Learning Data
+    _moodHistory = _prefs.getStringList('behavior_mood_history') ?? [];
+    _energyHistory = (_prefs.getStringList('behavior_energy_history') ?? [])
+        .map((e) => int.tryParse(e) ?? 7)
         .toList();
+    _lastUsedModule = _prefs.getString('behavior_last_module') ?? "";
+    
+    final usageStr = _prefs.getString('behavior_module_usage') ?? "{}";
+    try {
+      _moduleUsageCount = Map<String, int>.from(jsonDecode(usageStr));
+    } catch (_) {
+      _moduleUsageCount = {};
+    }
 
     _autoUpdateCycleAndWater();
     if (_isSharingLocation) updateLocation();
@@ -403,20 +427,63 @@ class UserState extends ChangeNotifier {
     if (_history.length > 50) _history.removeAt(0);
     final encoded = _history.map((e) => jsonEncode(e.toMap())).toList();
     _prefs.setStringList('user_learning_v1', encoded);
+
+    // New Behavior Tracking
+    recordModuleUsage(moduleName);
+  }
+
+  void recordModuleUsage(String module) {
+    _moduleUsageCount[module] = (_moduleUsageCount[module] ?? 0) + 1;
+    _lastUsedModule = module;
+    notifyListeners();
+    
+    _prefs.setString('behavior_module_usage', jsonEncode(_moduleUsageCount));
+    _prefs.setString('behavior_last_module', _lastUsedModule);
+  }
+
+  void recordMood(String mood) {
+    _moodHistory.add(mood);
+    if (_moodHistory.length > 20) _moodHistory.removeAt(0); // Keep last 20
+    notifyListeners();
+    _prefs.setStringList('behavior_mood_history', _moodHistory);
+  }
+
+  void recordEnergy(int energy) {
+    _energyHistory.add(energy);
+    if (_energyHistory.length > 20) _energyHistory.removeAt(0); // Keep last 20
+    notifyListeners();
+    _prefs.setStringList(
+      'behavior_energy_history', 
+      _energyHistory.map((e) => e.toString()).toList()
+    );
   }
 
   String getSuggestedModule() {
-    Map<String, int> patterns = {};
+    // 1. Check specific mood-based habit from history (Contextual)
+    // "What do I usually do when I feel X?"
+    Map<String, int> moodSpecificUsage = {};
     for (var log in _history) {
       if (log.mood == _mood) {
-        patterns[log.module] = (patterns[log.module] ?? 0) + 1;
+        moodSpecificUsage[log.module] = (moodSpecificUsage[log.module] ?? 0) + 1;
       }
     }
-    if (patterns.isNotEmpty) {
-      var sortedPatterns = patterns.entries.toList()
+    if (moodSpecificUsage.isNotEmpty) {
+       var sorted = moodSpecificUsage.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
-      return sortedPatterns.first.key;
+       return sorted.first.key;
     }
+
+    // 2. Check overall most used module (Habitual)
+    if (_moduleUsageCount.isNotEmpty) {
+      var sortedUsage = _moduleUsageCount.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      // If the top used module has significant usage (> 3 times), suggest it
+      if (sortedUsage.first.value > 3) {
+        return sortedUsage.first.key;
+      }
+    }
+
+    // 3. Fallback to Rule-based (Cold Start)
     if (_mood == 'stressed' || _mood == 'tired') return 'HerTalk';
     if (_energyLevel < 4) return 'Boost';
     if (_tasks.isNotEmpty) return 'Daily Planner';
@@ -433,9 +500,8 @@ class UserState extends ChangeNotifier {
   }
 
   Future<void> updateMood(String newMood) async {
-    _mood = newMood;
-    notifyListeners();
     await _prefs.setString('user_mood', newMood);
+    recordMood(newMood); // Track history
     HapticFeedback.selectionClick();
   }
 
@@ -443,6 +509,7 @@ class UserState extends ChangeNotifier {
     _energyLevel = level;
     notifyListeners();
     await _prefs.setInt('user_energy', level);
+    recordEnergy(level); // Track history
   }
 
   Future<void> addTask(String title, {DateTime? reminder}) async {
