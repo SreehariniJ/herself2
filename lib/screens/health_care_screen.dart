@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../core/herself_core.dart';
+import 'workout_screen.dart';
 
 class HealthCareScreen extends StatelessWidget {
   const HealthCareScreen({super.key});
@@ -72,54 +73,13 @@ class HealthCareScreen extends StatelessWidget {
     );
   }
 
-  void _startMeditation(BuildContext context, UserState state) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.self_improvement, size: 80, color: Colors.teal),
-            const SizedBox(height: 20),
-            const Text(
-              'Meditation Session',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Take a deep breath and clear your mind...',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 40),
-            const CircularProgressIndicator(color: Colors.teal),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () {
-                state.addMeditationMinutes(5);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('End Session'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final userState = Provider.of<UserState>(context);
+    final recentLogs = userState.getRecentLogs(7);
+    final avgWater = userState.getAverageWater();
+    final avgSleep = userState.getAverageSleep();
+    final insight = userState.getHealthInsight();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Health Care')),
@@ -127,6 +87,7 @@ class HealthCareScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // Hydration Tracker
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -185,7 +146,164 @@ class HealthCareScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // -- Health Insights Card --
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: Color(0xFF388E3C), size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Health Insights',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2E7D32),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _buildAvgChip(
+                        '💧 ${avgWater.toStringAsFixed(1)}',
+                        'cups/day',
+                        Colors.blue,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildAvgChip(
+                        '😴 ${avgSleep.toStringAsFixed(1)}',
+                        'hrs/night',
+                        Colors.deepPurple,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      insight,
+                      style: const TextStyle(fontSize: 14, height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // -- 7-Day History Chart --
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '7-Day History',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Water (blue) & Sleep (purple)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 140,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: recentLogs.map((log) {
+                        final dayLabel = log.date.length >= 10
+                            ? DateFormat('E').format(DateTime.parse(log.date))
+                            : '?';
+                        final waterH = (log.waterCups / 10.0).clamp(0.0, 1.0);
+                        final sleepH = (log.sleepHours / 12.0).clamp(0.0, 1.0);
+                        return Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 100 * waterH + 4,
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade400,
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Container(
+                                    width: 12,
+                                    height: 100 * sleepH + 4,
+                                    decoration: BoxDecoration(
+                                      color: Colors.deepPurple.shade300,
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                dayLabel,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Existing tiles
             _buildHealthTile(
               'Cycle Tracker',
               userState.lastPeriodDate != null
@@ -205,16 +323,70 @@ class HealthCareScreen extends StatelessWidget {
               () => _showSleepDialog(context, userState),
             ),
             _buildHealthTile(
-              'Meditation',
-              '${userState.meditationMinutes} mins completed today',
-              Icons.self_improvement,
+              'Workout Plan',
+              userState.getCyclePhase() != 'unknown'
+                  ? '${_phaseEmoji(userState.getCyclePhase())} ${_phaseName(userState.getCyclePhase())} — tap to start'
+                  : 'Personalized daily workout',
+              Icons.fitness_center,
               Colors.teal,
-              () => _startMeditation(context, userState),
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WorkoutScreen()),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildAvgChip(String value, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: color.withOpacity(0.8)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _phaseEmoji(String phase) {
+    switch (phase) {
+      case 'menstrual': return '🌸';
+      case 'follicular': return '🌱';
+      case 'ovulatory': return '⚡';
+      case 'luteal': return '🧘';
+      default: return '💪';
+    }
+  }
+
+  String _phaseName(String phase) {
+    switch (phase) {
+      case 'menstrual': return 'Menstrual Phase';
+      case 'follicular': return 'Follicular Phase';
+      case 'ovulatory': return 'Ovulatory Phase';
+      case 'luteal': return 'Luteal Phase';
+      default: return 'General';
+    }
   }
 
   Widget _buildHealthTile(
@@ -504,6 +676,7 @@ class _CycleTrackerScreenState extends State<CycleTrackerScreen> {
     final daysUntil = userState.getDaysUntilNextPeriod();
     final isOnPeriod = userState.isOnPeriod();
     final currentDay = userState.getCurrentPeriodDay();
+    final phase = userState.getCyclePhase();
 
     return Scaffold(
       appBar: AppBar(
@@ -650,7 +823,42 @@ class _CycleTrackerScreenState extends State<CycleTrackerScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
+
+                  // Current Phase Badge
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: _phaseColor(phase).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _phaseColor(phase).withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(_phaseEmoji(phase), style: const TextStyle(fontSize: 20)),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Current Phase: ${_phaseName(phase)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: _phaseColor(phase),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '(Day ${userState.getDayInCycle()})',
+                          style: TextStyle(
+                            color: _phaseColor(phase).withOpacity(0.7),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
                   // Quick Actions
                   Row(
@@ -717,6 +925,36 @@ class _CycleTrackerScreenState extends State<CycleTrackerScreen> {
               ),
             ),
     );
+  }
+
+  Color _phaseColor(String phase) {
+    switch (phase) {
+      case 'menstrual': return Colors.pink;
+      case 'follicular': return Colors.green;
+      case 'ovulatory': return Colors.orange;
+      case 'luteal': return Colors.purple;
+      default: return Colors.blue;
+    }
+  }
+
+  String _phaseEmoji(String phase) {
+    switch (phase) {
+      case 'menstrual': return '🌸';
+      case 'follicular': return '🌱';
+      case 'ovulatory': return '⚡';
+      case 'luteal': return '🧘';
+      default: return '💪';
+    }
+  }
+
+  String _phaseName(String phase) {
+    switch (phase) {
+      case 'menstrual': return 'Menstrual';
+      case 'follicular': return 'Follicular';
+      case 'ovulatory': return 'Ovulatory';
+      case 'luteal': return 'Luteal';
+      default: return 'General';
+    }
   }
 
   Widget _buildInfoCard(

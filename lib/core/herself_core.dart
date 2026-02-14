@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'notification_service.dart';
+import 'package:intl/intl.dart';
 
 class TaskItem {
   final String id;
@@ -33,6 +34,30 @@ class TaskItem {
         ? DateTime.tryParse(map['reminderTime'])
         : null,
     reminderTriggered: map['reminderTriggered'] ?? false,
+  );
+}
+
+class DailyHealthLog {
+  final String date;
+  final int waterCups;
+  final int sleepHours;
+
+  DailyHealthLog({
+    required this.date,
+    required this.waterCups,
+    required this.sleepHours,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'date': date,
+    'waterCups': waterCups,
+    'sleepHours': sleepHours,
+  };
+
+  factory DailyHealthLog.fromMap(Map<String, dynamic> map) => DailyHealthLog(
+    date: map['date'],
+    waterCups: map['waterCups'] ?? 0,
+    sleepHours: map['sleepHours'] ?? 0,
   );
 }
 
@@ -79,11 +104,12 @@ class UserState extends ChangeNotifier {
   DateTime? _lastPeriodDate;
   int _cycleLength;
   int _periodDuration;
-  int _meditationMinutes;
   bool _isSharingLocation;
   String _currentCoordinates = "Unknown";
   DateTime _lastOpened;
   List<InteractionLog> _history = [];
+  int _meditationMinutes = 0;
+  List<DailyHealthLog> _healthLogs = [];
 
   final SharedPreferences _prefs;
 
@@ -98,9 +124,10 @@ class UserState extends ChangeNotifier {
   DateTime? get lastPeriodDate => _lastPeriodDate;
   int get cycleLength => _cycleLength;
   int get periodDuration => _periodDuration;
-  int get meditationMinutes => _meditationMinutes;
   bool get isSharingLocation => _isSharingLocation;
   String get currentCoordinates => _currentCoordinates;
+  int get meditationMinutes => _meditationMinutes;
+  List<DailyHealthLog> get healthLogs => _healthLogs;
   String? get geminiApiKey => _prefs.getString('gemini_api_key');
 
   final StreamController<TaskItem> _reminderStreamController =
@@ -130,9 +157,16 @@ class UserState extends ChangeNotifier {
       _lastPeriodDate = _parseSafeDate(_prefs.getString('last_period_date')),
       _cycleLength = _prefs.getInt('cycle_length') ?? 28,
       _periodDuration = _prefs.getInt('period_duration') ?? 5,
-      _meditationMinutes = _prefs.getInt('user_meditation') ?? 0,
       _isSharingLocation = _prefs.getBool('user_location') ?? true,
       _lastOpened = _parseSafeDate(_prefs.getString('last_opened')) {
+    _meditationMinutes = _prefs.getInt('user_meditation') ?? 0;
+    _healthLogs = (_prefs.getStringList('health_logs_v1') ?? [])
+        .map((item) {
+          try { return DailyHealthLog.fromMap(jsonDecode(item)); }
+          catch (_) { return null; }
+        })
+        .whereType<DailyHealthLog>()
+        .toList();
     // Add default contacts if list is empty
     if (_emergencyContacts.isEmpty) {
       _emergencyContacts = [
@@ -186,6 +220,24 @@ class UserState extends ChangeNotifier {
     final dayDifference = nowDate.difference(lastDate).inDays;
 
     if (dayDifference > 0) {
+      // Save yesterday's health data before resetting
+      final yesterdayStr = DateFormat('yyyy-MM-dd').format(
+        nowDate.subtract(const Duration(days: 1)),
+      );
+      final alreadyLogged = _healthLogs.any((l) => l.date == yesterdayStr);
+      if (!alreadyLogged && (_waterCups > 0 || _sleepHours > 0)) {
+        _healthLogs.add(DailyHealthLog(
+          date: yesterdayStr,
+          waterCups: _waterCups,
+          sleepHours: _sleepHours,
+        ));
+        // Keep only last 30 days
+        if (_healthLogs.length > 30) {
+          _healthLogs = _healthLogs.sublist(_healthLogs.length - 30);
+        }
+        _saveHealthLogs();
+      }
+
       _waterCups = 0;
       _prefs.setInt('user_water', 0);
       _daysUntilCycle = (_daysUntilCycle - dayDifference).clamp(0, 40);
@@ -195,6 +247,97 @@ class UserState extends ChangeNotifier {
     }
     _lastOpened = now;
     _prefs.setString('last_opened', now.toIso8601String());
+  }
+
+  void _saveHealthLogs() async {
+    final list = _healthLogs.map((l) => jsonEncode(l.toMap())).toList();
+    await _prefs.setStringList('health_logs_v1', list);
+  }
+
+  /// Save today's health snapshot (called when user logs water or sleep)
+  Future<void> saveTodayHealthLog() async {
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _healthLogs.removeWhere((l) => l.date == todayStr);
+    _healthLogs.add(DailyHealthLog(
+      date: todayStr,
+      waterCups: _waterCups,
+      sleepHours: _sleepHours,
+    ));
+    if (_healthLogs.length > 30) {
+      _healthLogs = _healthLogs.sublist(_healthLogs.length - 30);
+    }
+    _saveHealthLogs();
+    notifyListeners();
+  }
+
+  /// Get the last N days of health logs (most recent first)
+  List<DailyHealthLog> getRecentLogs(int days) {
+    final now = DateTime.now();
+    final result = <DailyHealthLog>[];
+    for (int i = days - 1; i >= 0; i--) {
+      final dateStr = DateFormat('yyyy-MM-dd').format(
+        now.subtract(Duration(days: i)),
+      );
+      final log = _healthLogs.where((l) => l.date == dateStr).firstOrNull;
+      result.add(log ?? DailyHealthLog(date: dateStr, waterCups: 0, sleepHours: 0));
+    }
+    return result;
+  }
+
+  double getAverageWater({int days = 7}) {
+    final logs = getRecentLogs(days).where((l) => l.waterCups > 0).toList();
+    if (logs.isEmpty) return 0;
+    return logs.map((l) => l.waterCups).reduce((a, b) => a + b) / logs.length;
+  }
+
+  double getAverageSleep({int days = 7}) {
+    final logs = getRecentLogs(days).where((l) => l.sleepHours > 0).toList();
+    if (logs.isEmpty) return 0;
+    return logs.map((l) => l.sleepHours).reduce((a, b) => a + b) / logs.length;
+  }
+
+  String getHealthInsight() {
+    final avgWater = getAverageWater();
+    final avgSleep = getAverageSleep();
+    final phase = getCyclePhase();
+
+    if (avgSleep > 0 && avgSleep < 6) {
+      return '😴 You\'ve been averaging ${avgSleep.toStringAsFixed(1)}h sleep. Try to get 7-8 hours for better energy and recovery.';
+    }
+    if (avgWater > 0 && avgWater < 4) {
+      return '💧 Your hydration has been low (${avgWater.toStringAsFixed(1)} cups/day). Aim for 8 cups to stay energized!';
+    }
+    if (phase == 'menstrual') {
+      return '🌸 You\'re in your menstrual phase. Stay hydrated, rest well, and consider gentle movement like yoga.';
+    }
+    if (phase == 'ovulatory') {
+      return '⚡ You\'re in your ovulatory phase — peak energy! Great time for challenging workouts.';
+    }
+    if (avgSleep >= 7 && avgWater >= 6) {
+      return '🌟 Amazing! Your sleep and hydration are on point. Keep up the great work!';
+    }
+    if (phase == 'luteal') {
+      return '🧘 Luteal phase — you may feel lower energy soon. Prioritize sleep and moderate exercise.';
+    }
+    return '💪 Keep tracking your health daily! Consistency is key to understanding your body.';
+  }
+
+  /// Returns current menstrual cycle phase
+  String getCyclePhase() {
+    if (_lastPeriodDate == null) return 'unknown';
+    final daysSinceStart = DateTime.now().difference(_lastPeriodDate!).inDays;
+    final dayInCycle = daysSinceStart % _cycleLength;
+
+    if (dayInCycle < _periodDuration) return 'menstrual';
+    if (dayInCycle < (_cycleLength * 0.45).round()) return 'follicular';
+    if (dayInCycle < (_cycleLength * 0.6).round()) return 'ovulatory';
+    return 'luteal';
+  }
+
+  int getDayInCycle() {
+    if (_lastPeriodDate == null) return 0;
+    final daysSinceStart = DateTime.now().difference(_lastPeriodDate!).inDays;
+    return (daysSinceStart % _cycleLength) + 1;
   }
 
   // --- LOCATION LOGIC ---
@@ -274,7 +417,7 @@ class UserState extends ChangeNotifier {
         ..sort((a, b) => b.value.compareTo(a.value));
       return sortedPatterns.first.key;
     }
-    if (_mood == 'stressed' || _mood == 'tired') return 'Safe Space';
+    if (_mood == 'stressed' || _mood == 'tired') return 'HerTalk';
     if (_energyLevel < 4) return 'Boost';
     if (_tasks.isNotEmpty) return 'Daily Planner';
     return 'Health Care';
@@ -363,6 +506,7 @@ class UserState extends ChangeNotifier {
       _waterCups++;
       notifyListeners();
       await _prefs.setInt('user_water', _waterCups);
+      await saveTodayHealthLog();
       HapticFeedback.lightImpact();
     }
   }
@@ -378,6 +522,7 @@ class UserState extends ChangeNotifier {
     _sleepHours = hours;
     notifyListeners();
     await _prefs.setInt('user_sleep', hours);
+    await saveTodayHealthLog();
   }
 
   Future<void> updateCycleDays(int days) async {

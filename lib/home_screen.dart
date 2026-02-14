@@ -5,6 +5,7 @@ import 'screens/safe_space_screen.dart';
 import 'screens/daily_planner_screen.dart';
 import 'screens/health_care_screen.dart';
 import 'screens/guardian_screen.dart';
+import 'screens/workout_screen.dart';
 import 'core/herself_core.dart';
 import 'core/auth_service.dart';
 import 'package:intl/intl.dart';
@@ -96,10 +97,11 @@ class HomeScreen extends StatelessWidget {
 
     final Map<String, Widget> screenMap = {
       'Boost': const BoostScreen(),
-      'Safe Space': const SafeSpaceScreen(),
+      'HerTalk': const SafeSpaceScreen(),
       'Daily Planner': const DailyPlannerScreen(),
       'Health Care': const HealthCareScreen(),
       'Guardian': const GuardianScreen(),
+      'Workout': const WorkoutScreen(),
     };
 
     return Scaffold(
@@ -242,7 +244,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 _buildModuleCard(
                   context,
-                  'Safe Space',
+                  'HerTalk',
                   Icons.spa,
                   Colors.teal,
                   const SafeSpaceScreen(),
@@ -267,6 +269,13 @@ class HomeScreen extends StatelessWidget {
                   Icons.security,
                   Colors.indigo,
                   const GuardianScreen(),
+                ),
+                _buildModuleCard(
+                  context,
+                  'Workout',
+                  Icons.fitness_center,
+                  Colors.deepOrange,
+                  const WorkoutScreen(),
                 ),
               ]),
             ),

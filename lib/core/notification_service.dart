@@ -51,6 +51,18 @@ class NotificationService {
             debugPrint('Notification clicked: ${notificationResponse.payload}');
           },
     );
+
+    // Request permissions for Android 13+
+    final androidImplementation =
+        _flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+
+    if (androidImplementation != null) {
+      await androidImplementation.requestNotificationsPermission();
+      await androidImplementation.requestExactAlarmsPermission();
+    }
   }
 
   Future<void> scheduleNotification({

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/herself_core.dart';
 import '../logic/gemini_chatbot_logic.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
 
 class ChatMessage {
   final String text;
@@ -22,6 +24,13 @@ class _SafeSpaceScreenState extends State<SafeSpaceScreen> {
   final ScrollController _scrollController = ScrollController();
   late GeminiChatbotLogic _chatbotLogic;
   bool _isTyping = false;
+  
+  // Voice Features
+  late stt.SpeechToText _speech;
+  late FlutterTts _flutterTts;
+  bool _isListening = false;
+  bool _isSpeaking = false;
+  bool _isTtsEnabled = true;
 
   @override
   void initState() {
@@ -29,10 +38,91 @@ class _SafeSpaceScreenState extends State<SafeSpaceScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final state = Provider.of<UserState>(context, listen: false);
       _chatbotLogic = GeminiChatbotLogic(state);
+      _initVoiceFeatures();
       _addBotMessage(
         "Hi ${state.name}, I'm here for you. How are you feeling today?",
       );
     });
+  }
+
+  void _initVoiceFeatures() async {
+    _speech = stt.SpeechToText();
+    _flutterTts = FlutterTts();
+
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setPitch(1.0);
+    await _flutterTts.setSpeechRate(0.5);
+
+    // Try to find a female voice
+    try {
+      final voices = await _flutterTts.getVoices;
+      // Simple heuristic: look for 'female' or specific names, fallback to default
+      // On many systems, voices are just locales, so we rely on system default or user settings
+      // However, we can try to filter if names are available
+      if (voices is List) {
+        for (var voice in voices) {
+          if (voice.toString().toLowerCase().contains("female") || 
+              voice.toString().toLowerCase().contains("samantha") || 
+              voice.toString().toLowerCase().contains("zira")) {
+             await _flutterTts.setVoice(Map<String, String>.from(voice));
+             break;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error setting voice: $e");
+    }
+
+    _flutterTts.setStartHandler(() {
+      if (mounted) setState(() => _isSpeaking = true);
+    });
+
+    _flutterTts.setCompletionHandler(() {
+      if (mounted) setState(() => _isSpeaking = false);
+    });
+    
+    _flutterTts.setCancelHandler(() {
+       if (mounted) setState(() => _isSpeaking = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _flutterTts.stop();
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (status) {
+          if (status == 'notListening' && mounted) {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (error) => debugPrint('STT Error: $error'),
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) {
+            setState(() {
+              _controller.text = val.recognizedWords;
+            });
+          },
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
+  }
+
+  void _stopSpeaking() async {
+    await _flutterTts.stop();
+    if (mounted) setState(() => _isSpeaking = false);
   }
 
   void _addBotMessage(String text) {
@@ -42,6 +132,10 @@ class _SafeSpaceScreenState extends State<SafeSpaceScreen> {
       _isTyping = false;
     });
     _scrollToBottom();
+    
+    if (_isTtsEnabled) {
+      _flutterTts.speak(text);
+    }
   }
 
   void _handleSend([String? text]) {
@@ -54,6 +148,7 @@ class _SafeSpaceScreenState extends State<SafeSpaceScreen> {
       _controller.clear();
       _isTyping = true;
     });
+    _stopSpeaking(); // Stop previous speech when user sends new message
     _scrollToBottom();
 
     // Call Gemini API
@@ -100,10 +195,23 @@ class _SafeSpaceScreenState extends State<SafeSpaceScreen> {
               child: Icon(Icons.spa, size: 20, color: Colors.white),
             ),
             SizedBox(width: 10),
-            Text('AI Therapist', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('Aira AI', style: TextStyle(fontWeight: FontWeight.w600)),
           ],
         ),
-        actions: const [],
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isTtsEnabled ? Icons.volume_up : Icons.volume_off,
+              color: _isTtsEnabled ? Colors.teal : Colors.grey,
+            ),
+            onPressed: () {
+              setState(() {
+                _isTtsEnabled = !_isTtsEnabled;
+                if (!_isTtsEnabled) _stopSpeaking();
+              });
+            },
+          ),
+        ],
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
@@ -214,6 +322,19 @@ class _SafeSpaceScreenState extends State<SafeSpaceScreen> {
             ),
             child: Row(
               children: [
+                CircleAvatar(
+                  backgroundColor: _isListening ? Colors.red : Colors.grey.shade200,
+                  radius: 22,
+                  child: IconButton(
+                    icon: Icon(
+                      _isListening ? Icons.mic : Icons.mic_none,
+                      color: _isListening ? Colors.white : Colors.black54,
+                      size: 20,
+                    ),
+                    onPressed: _listen,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -224,7 +345,7 @@ class _SafeSpaceScreenState extends State<SafeSpaceScreen> {
                     child: TextField(
                       controller: _controller,
                       decoration: const InputDecoration(
-                        hintText: 'Type your thoughts...',
+                        hintText: 'Type or speak...',
                         hintStyle: TextStyle(color: Colors.grey),
                         border: InputBorder.none,
                       ),

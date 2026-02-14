@@ -10,6 +10,7 @@ import 'home_screen.dart';
 import 'core/herself_core.dart';
 import 'core/notification_service.dart';
 import 'core/auth_service.dart';
+import 'core/database_helper.dart';
 import 'screens/login_screen.dart';
 
 void main() async {
@@ -19,6 +20,10 @@ void main() async {
   // Pre-load the database so the app is instant
   final prefs = await SharedPreferences.getInstance();
 
+  // Initialize the SQLite database
+  final dbHelper = DatabaseHelper();
+  await dbHelper.init(prefs);
+
   // Initialize Notifications
   final notificationService = NotificationService();
   await notificationService.init();
@@ -26,7 +31,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => AuthService(prefs)),
+        ChangeNotifierProvider(create: (context) => AuthService(prefs, dbHelper)),
         ChangeNotifierProvider(create: (context) => UserState(prefs)),
       ],
       child: const HerselfApp(),

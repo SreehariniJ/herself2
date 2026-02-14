@@ -1,64 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'database_helper.dart';
 
 class AuthService extends ChangeNotifier {
   final SharedPreferences _prefs;
+  final DatabaseHelper _dbHelper;
   bool _isAuthenticated = false;
   String? _currentUserEmail;
+  String? _currentUserName;
 
-  AuthService(this._prefs) {
+  AuthService(this._prefs, this._dbHelper) {
     _loadAuthState();
   }
 
   bool get isAuthenticated => _isAuthenticated;
   String? get currentUserEmail => _currentUserEmail;
+  String? get currentUserName => _currentUserName;
 
   void _loadAuthState() {
     _isAuthenticated = _prefs.getBool('is_authenticated') ?? false;
     _currentUserEmail = _prefs.getString('user_email');
+    _currentUserName = _prefs.getString('user_name');
     notifyListeners();
   }
 
   Future<bool> login(String email, String password) async {
-    // For demo purposes, we'll use simple local validation
-    // In production, this would connect to a real backend
+    // Query the SQLite database for matching credentials
+    final user = await _dbHelper.getUser(email, password);
 
-    final storedEmail = _prefs.getString('registered_email');
-    final storedPassword = _prefs.getString('registered_password');
-
-    if (storedEmail == null || storedPassword == null) {
-      return false; // No user registered
+    if (user == null) {
+      return false; // Invalid credentials
     }
 
-    if (email == storedEmail && password == storedPassword) {
-      _isAuthenticated = true;
-      _currentUserEmail = email;
-      await _prefs.setBool('is_authenticated', true);
-      await _prefs.setString('user_email', email);
-      notifyListeners();
-      return true;
+    _isAuthenticated = true;
+    _currentUserEmail = email;
+    _currentUserName = user['name'] as String?;
+    await _prefs.setBool('is_authenticated', true);
+    await _prefs.setString('user_email', email);
+    if (_currentUserName != null) {
+      await _prefs.setString('user_name', _currentUserName!);
     }
-
-    return false;
+    notifyListeners();
+    return true;
   }
 
   Future<bool> signup(String email, String password, String name) async {
-    // Check if user already exists
-    final existingEmail = _prefs.getString('registered_email');
-    if (existingEmail != null) {
+    // Check if user already exists in the database
+    final existingUser = await _dbHelper.getUserByEmail(email);
+    if (existingUser != null) {
       return false; // User already exists
     }
 
-    // Store credentials (in production, hash the password!)
-    await _prefs.setString('registered_email', email);
-    await _prefs.setString('registered_password', password);
-    await _prefs.setString('user_name', name);
+    // Insert new user into the database
+    try {
+      await _dbHelper.insertUser(name, email, password);
+    } catch (e) {
+      return false; // Insert failed (e.g. duplicate email)
+    }
 
     // Auto-login after signup
     _isAuthenticated = true;
     _currentUserEmail = email;
+    _currentUserName = name;
     await _prefs.setBool('is_authenticated', true);
     await _prefs.setString('user_email', email);
+    await _prefs.setString('user_name', name);
 
     notifyListeners();
     return true;
@@ -67,14 +73,16 @@ class AuthService extends ChangeNotifier {
   Future<void> logout() async {
     _isAuthenticated = false;
     _currentUserEmail = null;
+    _currentUserName = null;
     await _prefs.setBool('is_authenticated', false);
     await _prefs.remove('user_email');
     notifyListeners();
   }
 
   Future<void> deleteAccount() async {
-    await _prefs.remove('registered_email');
-    await _prefs.remove('registered_password');
+    if (_currentUserEmail != null) {
+      await _dbHelper.deleteUser(_currentUserEmail!);
+    }
     await _prefs.remove('user_name');
     await logout();
   }

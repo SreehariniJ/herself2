@@ -33,15 +33,67 @@ class _GuardianScreenState extends State<GuardianScreen> {
       } else {
         timer.cancel();
         setState(() => _isCountdownActive = false);
-        if (mounted) _showSOSSent();
+        if (mounted) _sendWhatsAppSOS();
       }
     });
   }
 
-  void _showSOSSent() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('SOS Alert Sent to Emergency Contacts!'), backgroundColor: Colors.red),
+  Future<void> _sendWhatsAppSOS() async {
+    final userState = Provider.of<UserState>(context, listen: false);
+    final contacts = userState.emergencyContacts;
+    
+    if (contacts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No emergency contacts saved! Add contacts first.')),
+      );
+      return;
+    }
+
+    // Get location
+    String locationLink = "Unknown Location";
+    if (userState.currentCoordinates != "Unknown") {
+      final coords = userState.currentCoordinates.replaceAll(" ", ""); // Remove spaces
+      locationLink = "https://www.google.com/maps/search/?api=1&query=$coords";
+    }
+
+    // Message Content
+    final message = Uri.encodeComponent(
+      "🆘 SOS! I need help immediately. My current location is: $locationLink"
     );
+
+    int sentCount = 0;
+    // Iterate through contacts and send WhatsApp message
+    for (var contact in contacts) {
+      // Basic sanitization: keep only digits
+      final phone = contact.phone.replaceAll(RegExp(r'\D'), '');
+      
+      if (phone.isNotEmpty) {
+        // Construct the WhatsApp URL
+        final whatsappUrl = Uri.parse("https://wa.me/$phone?text=$message");
+        
+        try {
+          if (await canLaunchUrl(whatsappUrl)) {
+            await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+            sentCount++;
+            // Small delay to allow app switch (especially on mobile)
+            await Future.delayed(const Duration(seconds: 2)); 
+          } else {
+             debugPrint('Could not launch WhatsApp for ${contact.name}');
+          }
+        } catch (e) {
+          debugPrint('Error launching WhatsApp: $e');
+        }
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('SOS Alert triggered for $sentCount contacts via WhatsApp'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _addContactDialog(BuildContext context, UserState state) {

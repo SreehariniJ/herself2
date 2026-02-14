@@ -43,6 +43,8 @@ dependencies:
   google_generative_ai: ^0.4.7
   flutter_local_notifications: ^17.0.0
   timezone: ^0.9.2
+  speech_to_text: ^6.6.0
+  flutter_tts: ^3.8.3
 
 dev_dependencies:
   flutter_test:
